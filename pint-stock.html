@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pint Freezer Stock</title>
+<style>
+  :root{
+    --frost: #F3F6F7;
+    --frost-panel: #FFFFFF;
+    --ink: #1E2A32;
+    --ink-soft: #5B6C74;
+    --line: #D9E1E4;
+    --low: #B4453A;
+    --low-bg: #FBEEEC;
+    --perfect: #3E6B4F;
+    --perfect-bg: #ECF3EE;
+    --over: #B9822E;
+    --over-bg: #FBF2E4;
+  }
+  *{ box-sizing: border-box; }
+  html,body{
+    margin:0; padding:0;
+    background: var(--frost);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .app{
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 18px 14px 60px;
+  }
+  .topbar{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    margin-bottom: 18px;
+    gap: 12px;
+  }
+  .title h1{
+    font-size: 21px;
+    font-weight: 700;
+    margin: 0 0 2px;
+    letter-spacing: -0.01em;
+  }
+  .title p{
+    margin:0;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .manage-btn{
+    background: var(--frost-panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    display:flex;
+    align-items:center;
+    gap:6px;
+    cursor:pointer;
+    flex-shrink:0;
+    box-shadow: 0 1px 2px rgba(30,42,50,0.05);
+  }
+  .manage-btn:active{ transform: translateY(1px); }
+
+  .columns{
+    display:flex;
+    flex-direction:column;
+    gap: 14px;
+  }
+  .col{
+    background: var(--frost-panel);
+    border-radius: 14px;
+    border: 1px solid var(--line);
+    overflow:hidden;
+  }
+  .col-head{
+    padding: 12px 14px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap: 10px;
+  }
+  .col-head h2{
+    margin:0;
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .col-head .count-pill{
+    font-size:12px;
+    font-weight:600;
+    padding: 2px 8px;
+    border-radius: 100px;
+    background: rgba(0,0,0,0.05);
+    color: var(--ink-soft);
+  }
+  .col.low .col-head{ background: var(--low-bg); }
+  .col.low .col-head h2{ color: var(--low); }
+  .col.perfect .col-head{ background: var(--perfect-bg); }
+  .col.perfect .col-head h2{ color: var(--perfect); }
+  .col.over .col-head{ background: var(--over-bg); }
+  .col.over .col-head h2{ color: var(--over); }
+
+  .col-body{ padding: 10px 14px 14px; }
+
+  .entry-list{
+    display:flex;
+    flex-direction:column;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .entry{
+    display:flex;
+    align-items:center;
+    gap: 8px;
+    background: var(--frost);
+    border-radius: 9px;
+    padding: 8px 10px;
+  }
+  .entry .flavor-name{
+    flex:1;
+    font-size: 14px;
+    font-weight: 500;
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .entry .qty-input{
+    width: 44px;
+    text-align:center;
+    font-size:14px;
+    font-weight:700;
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding: 5px 2px;
+    background: var(--frost-panel);
+    color: var(--ink);
+  }
+  .entry .qty-input:focus{ outline: 2px solid var(--ink-soft); outline-offset: 1px; }
+  .remove-btn{
+    width: 24px; height:24px;
+    border-radius:50%;
+    border:none;
+    background: transparent;
+    color: var(--ink-soft);
+    font-size: 15px;
+    line-height:1;
+    cursor:pointer;
+    flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .remove-btn:active{ background: rgba(0,0,0,0.08); }
+
+  .empty-row{
+    font-size: 13px;
+    color: var(--ink-soft);
+    padding: 6px 2px 10px;
+    font-style: italic;
+  }
+
+  .add-row select{
+    width:100%;
+    padding: 9px 10px;
+    border-radius: 9px;
+    border: 1px solid var(--line);
+    background: var(--frost-panel);
+    color: var(--ink);
+    font-size: 14px;
+  }
+
+  /* Manage flavors overlay */
+  .overlay{
+    position:fixed; inset:0;
+    background: rgba(20,28,32,0.45);
+    display:flex; align-items:flex-end; justify-content:center;
+    z-index: 50;
+    opacity:0; pointer-events:none;
+    transition: opacity 0.18s ease;
+  }
+  .overlay.open{ opacity:1; pointer-events:auto; }
+  .sheet{
+    background: var(--frost-panel);
+    width:100%;
+    max-width: 720px;
+    border-radius: 16px 16px 0 0;
+    padding: 18px 16px 24px;
+    transform: translateY(12px);
+    transition: transform 0.18s ease;
+    max-height: 80vh;
+    overflow-y:auto;
+  }
+  .overlay.open .sheet{ transform: translateY(0); }
+  .sheet h3{
+    margin: 0 0 4px;
+    font-size: 16px;
+    font-weight:700;
+  }
+  .sheet .sub{
+    margin: 0 0 14px;
+    font-size:13px;
+    color: var(--ink-soft);
+  }
+  .flavor-add{
+    display:flex;
+    gap:8px;
+    margin-bottom: 14px;
+  }
+  .flavor-add input{
+    flex:1;
+    padding: 10px 12px;
+    border-radius: 9px;
+    border: 1px solid var(--line);
+    font-size: 14px;
+  }
+  .flavor-add button{
+    background: var(--ink);
+    color: white;
+    border:none;
+    border-radius: 9px;
+    padding: 0 16px;
+    font-weight:600;
+    font-size:14px;
+    cursor:pointer;
+  }
+  .flavor-list{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .flavor-list .frow{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding: 9px 10px;
+    background: var(--frost);
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .frow button{
+    background:transparent;
+    border:none;
+    color: var(--low);
+    font-size: 13px;
+    font-weight:600;
+    cursor:pointer;
+    padding: 4px 6px;
+  }
+  .close-sheet{
+    display:block;
+    width:100%;
+    text-align:center;
+    margin-top: 16px;
+    padding: 11px;
+    border-radius: 9px;
+    background: var(--frost);
+    border: 1px solid var(--line);
+    font-weight:600;
+    font-size:14px;
+    color: var(--ink);
+    cursor:pointer;
+  }
+  .save-note{
+    text-align:center;
+    font-size:12px;
+    color: var(--ink-soft);
+    margin-top: 18px;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="topbar">
+    <div class="title">
+      <h1>Pint Freezer Stock</h1>
+      <p>Tap a column to sort today's flavors</p>
+    </div>
+    <button class="manage-btn" id="manageBtn">⚙ Flavors</button>
+  </div>
+
+  <div class="columns" id="columns"></div>
+
+  <p class="save-note" id="saveNote">Loading…</p>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <h3>Manage pint flavors</h3>
+    <p class="sub">Add or remove flavors from the master list used in all three dropdowns.</p>
+    <div class="flavor-add">
+      <input type="text" id="newFlavorInput" placeholder="e.g. Salted Caramel" maxlength="40">
+      <button id="addFlavorBtn">Add</button>
+    </div>
+    <div class="flavor-list" id="flavorList"></div>
+    <button class="close-sheet" id="closeSheet">Done</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const DEFAULT_FLAVORS = [
+    "Vanilla", "Chocolate", "Strawberry", "Mint Chip", "Cookies & Cream",
+    "Salted Caramel", "Coffee", "Peanut Butter Cup", "Rocky Road", "Butter Pecan"
+  ];
+
+  const COLS = [
+    { key: "low",     title: "Low / Out",  hasQty: true  },
+    { key: "perfect", title: "Perfect",    hasQty: false },
+    { key: "over",    title: "Overstock",  hasQty: true  }
+  ];
+
+  let flavors = [];
+  let stock = { low: [], perfect: [], over: [] }; // entries: {flavor, qty}
+
+  const columnsEl = document.getElementById('columns');
+  const saveNote = document.getElementById('saveNote');
+  const overlay = document.getElementById('overlay');
+  const flavorListEl = document.getElementById('flavorList');
+
+  function loadData(){
+    try{
+      const f = localStorage.getItem('pint-flavor-list');
+      flavors = f ? JSON.parse(f) : DEFAULT_FLAVORS.slice();
+    }catch(e){ flavors = DEFAULT_FLAVORS.slice(); }
+
+    try{
+      const s = localStorage.getItem('pint-stock-data');
+      stock = s ? JSON.parse(s) : { low: [], perfect: [], over: [] };
+    }catch(e){ stock = { low: [], perfect: [], over: [] }; }
+
+    render();
+    saveNote.textContent = "Changes save automatically on this device";
+  }
+
+  function persistFlavors(){
+    try{ localStorage.setItem('pint-flavor-list', JSON.stringify(flavors)); }
+    catch(e){ saveNote.textContent = "Couldn't save — your browser may be blocking storage"; }
+  }
+  function persistStock(){
+    try{ localStorage.setItem('pint-stock-data', JSON.stringify(stock)); }
+    catch(e){ saveNote.textContent = "Couldn't save — your browser may be blocking storage"; }
+  }
+
+  function flavorsAvailableFor(colKey){
+    const used = new Set(stock[colKey].map(e => e.flavor));
+    return flavors.filter(f => !used.has(f));
+  }
+
+  function render(){
+    columnsEl.innerHTML = '';
+    COLS.forEach(col => {
+      const wrap = document.createElement('div');
+      wrap.className = `col ${col.key}`;
+
+      const entries = stock[col.key];
+      const entriesHtml = entries.length
+        ? entries.map((e, idx) => `
+            <div class="entry" data-idx="${idx}">
+              <span class="flavor-name">${escapeHtml(e.flavor)}</span>
+              ${col.hasQty ? `<input type="number" inputmode="numeric" min="0" class="qty-input" value="${e.qty ?? ''}" placeholder="#" data-idx="${idx}" data-col="${col.key}">` : ''}
+              <button class="remove-btn" data-idx="${idx}" data-col="${col.key}" aria-label="Remove">✕</button>
+            </div>
+          `).join('')
+        : `<div class="empty-row">Nothing here yet</div>`;
+
+      const available = flavorsAvailableFor(col.key);
+      const optionsHtml = available.length
+        ? `<option value="" selected disabled>Add a flavor…</option>` + available.map(f => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('')
+        : `<option value="" selected disabled>All flavors added</option>`;
+
+      wrap.innerHTML = `
+        <div class="col-head">
+          <h2>${col.title}</h2>
+          <span class="count-pill">${entries.length}</span>
+        </div>
+        <div class="col-body">
+          <div class="entry-list">${entriesHtml}</div>
+          <div class="add-row">
+            <select data-col="${col.key}" class="add-select" ${available.length === 0 ? 'disabled' : ''}>
+              ${optionsHtml}
+            </select>
+          </div>
+        </div>
+      `;
+      columnsEl.appendChild(wrap);
+    });
+
+    // wire up events
+    columnsEl.querySelectorAll('.add-select').forEach(sel => {
+      sel.addEventListener('change', (ev) => {
+        const colKey = ev.target.getAttribute('data-col');
+        const flavor = ev.target.value;
+        if(!flavor) return;
+        stock[colKey].push({ flavor, qty: '' });
+        persistStock();
+        render();
+      });
+    });
+
+    columnsEl.querySelectorAll('.remove-btn').forEach(btn => {
+      btn.addEventListener('click', (ev) => {
+        const colKey = btn.getAttribute('data-col');
+        const idx = parseInt(btn.getAttribute('data-idx'), 10);
+        stock[colKey].splice(idx, 1);
+        persistStock();
+        render();
+      });
+    });
+
+    columnsEl.querySelectorAll('.qty-input').forEach(inp => {
+      inp.addEventListener('input', (ev) => {
+        const colKey = inp.getAttribute('data-col');
+        const idx = parseInt(inp.getAttribute('data-idx'), 10);
+        stock[colKey][idx].qty = inp.value;
+        persistStock();
+      });
+    });
+  }
+
+  function renderFlavorSheet(){
+    flavorListEl.innerHTML = flavors.length
+      ? flavors.map((f, idx) => `
+          <div class="frow">
+            <span>${escapeHtml(f)}</span>
+            <button data-idx="${idx}">Remove</button>
+          </div>
+        `).join('')
+      : `<div class="empty-row">No flavors yet — add one above</div>`;
+
+    flavorListEl.querySelectorAll('button[data-idx]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.getAttribute('data-idx'), 10);
+        const removed = flavors[idx];
+        flavors.splice(idx, 1);
+        // also clean out any stock entries referencing this flavor
+        COLS.forEach(col => {
+          stock[col.key] = stock[col.key].filter(e => e.flavor !== removed);
+        });
+        persistFlavors();
+        persistStock();
+        renderFlavorSheet();
+        render();
+      });
+    });
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  document.getElementById('manageBtn').addEventListener('click', () => {
+    renderFlavorSheet();
+    overlay.classList.add('open');
+  });
+  document.getElementById('closeSheet').addEventListener('click', () => {
+    overlay.classList.remove('open');
+  });
+  overlay.addEventListener('click', (ev) => {
+    if(ev.target === overlay) overlay.classList.remove('open');
+  });
+
+  document.getElementById('addFlavorBtn').addEventListener('click', addFlavorFromInput);
+  document.getElementById('newFlavorInput').addEventListener('keydown', (ev) => {
+    if(ev.key === 'Enter') addFlavorFromInput();
+  });
+
+  function addFlavorFromInput(){
+    const input = document.getElementById('newFlavorInput');
+    const val = input.value.trim();
+    if(!val) return;
+    if(flavors.some(f => f.toLowerCase() === val.toLowerCase())){
+      input.value = '';
+      return;
+    }
+    flavors.push(val);
+    input.value = '';
+    persistFlavors();
+    renderFlavorSheet();
+    render();
+  }
+
+  loadData();
+})();
+</script>
+
+</body>
+</html>
